@@ -33,3 +33,31 @@ if (ptr_frame_info != NULL) {
 } else {
     printf("Failed to retrieve FrameInfo\n");
 }
+
+
+unsigned int kheap_virtual_address(unsigned int physical_address)
+{
+    uint32 frame_no = physical_address >> 12;
+    uint32 offset = physical_address & 0x00000FFF;
+
+    // Iterate over page directory
+    for (int pd_index = 0; pd_index < PAGE_DIRECTORY_ENTRIES; pd_index++) {
+        uint32* ptr_page_table = NULL;
+        get_page_table(ptr_page_directory, pd_index << 22, &ptr_page_table);
+
+        if (ptr_page_table != NULL) {
+            // Iterate over page table entries
+            for (int pt_index = 0; pt_index < PAGE_TABLE_ENTRIES; pt_index++) {
+                uint32 table_entry = ptr_page_table[pt_index];
+                int entry_frame_no = table_entry >> 12;
+                if (entry_frame_no == frame_no) {
+                    unsigned int virtual_address = ((pd_index << 22) | (pt_index << 12) | offset);
+                    return virtual_address;
+                }
+            }
+        }
+    }
+
+    // No mapping found
+    return 0;
+}
