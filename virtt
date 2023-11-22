@@ -1,0 +1,27 @@
+unsigned int kheap_virtual_address(unsigned int physical_address)
+{
+    uint32 frame_no = physical_address >> 12;
+
+    uint32* ptr_page_table;
+    int result = get_page_table(ptr_page_directory, frame_no, &ptr_page_table);
+
+    printf("Given Physical Address: %u\n", physical_address);
+    printf("Frame Number: %u\n", frame_no);
+
+    if (result == TABLE_IN_MEMORY && ptr_page_table != NULL) {
+        uint32 page_table_entry = ptr_page_table[PTX(frame_no)];
+        uint32 offset = physical_address & 0x00000FFF;
+
+        printf("Page Table Entry: %u\n", page_table_entry);
+        printf("Offset within Page: %u\n", offset);
+
+        uint32 virtual_address = (page_table_entry << 12) + offset;
+
+        printf("Calculated Virtual Address: %u\n", virtual_address);
+
+        return virtual_address;
+    } else {
+        printf("Page table not in memory or NULL\n");
+        return 0;
+    }
+}
