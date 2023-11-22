@@ -69,3 +69,21 @@ struct FrameInfo * get_frame_info(uint32 *ptr_page_directory, uint32 virtual_add
 	}
 	return 0;
 }
+
+
+unsigned int kheap_virtual_address(unsigned int physical_address) {
+	for (uint32 va=KERNEL_HEAP_START;va< KERNEL_HEAP_MAX;va+=PAGE_SIZE){
+		struct FrameInfo* frame=NULL;
+	    uint32* ptr_page_table=NULL;
+
+	    frame=get_frame_info(ptr_page_directory,va,&ptr_page_table);
+	    if(frame!=NULL){
+	      unsigned int virt_addr=to_physical_address(frame);
+	      if(virt_addr==physical_address){
+	    	  return va;
+	      }
+	    }
+
+	}
+    return 0;
+}
