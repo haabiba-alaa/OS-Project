@@ -1,0 +1,281 @@
+int test_kheap_virt_addr()
+{
+	/*********************** NOTE ****************************
+	 * WE COMPARE THE DIFF IN FREE FRAMES BY "AT LEAST" RULE
+	 * INSTEAD OF "EQUAL" RULE SINCE IT'S POSSIBLE FOR SOME
+	 * IMPLEMENTATIONS TO DYNAMICALLY ALLOCATE SPECIAL DATA
+	 * STRUCTURE TO MANAGE THE PAGE ALLOCATOR.
+	 *********************************************************/
+
+	cprintf("==============================================\n");
+	cprintf("MAKE SURE to have a FRESH RUN for this test\n(i.e. don't run any program/test before it)\n");
+	cprintf("==============================================\n");
+
+	char minByte = 1<<7;
+	char maxByte = 0x7F;
+	short minShort = 1<<15 ;
+	short maxShort = 0x7FFF;
+	int minInt = 1<<31 ;
+	int maxInt = 0x7FFFFFFF;
+
+	char *byteArr, *byteArr2 ;
+	short *shortArr, *shortArr2 ;
+	int *intArr;
+	struct MyStruct *structArr ;
+	int lastIndexOfByte, lastIndexOfByte2, lastIndexOfShort, lastIndexOfShort2, lastIndexOfInt, lastIndexOfStruct;
+	int start_freeFrames = sys_calculate_free_frames() ;
+
+	//malloc some spaces
+	int i, freeFrames, freeDiskFrames ;
+	char* ptr;
+	int lastIndices[20] = {0};
+	int sums[20] = {0};
+
+	int eval = 0;
+	bool correct = 1;
+
+	void* ptr_allocations[20] = {0};
+	{
+		//2 MB
+		freeFrames = sys_calculate_free_frames() ;
+		freeDiskFrames = pf_calculate_free_frames() ;
+		ptr_allocations[0] = kmalloc(2*Mega-kilo);
+		if ((uint32) ptr_allocations[0] !=  (ACTUAL_START)) { correct = 0; cprintf("Wrong start address for the allocated space... check return address of kmalloc\n"); }
+		if ((pf_calculate_free_frames() - freeDiskFrames) != 0) { correct = 0; cprintf("Page file is changed while it's not expected to. (pages are wrongly allocated/de-allocated in PageFile)\n"); }
+		if ((freeFrames - sys_calculate_free_frames()) < 512) { correct = 0; cprintf("Wrong allocation: pages are not loaded successfully into memory\n"); }
+
+		//2 MB
+		freeFrames = sys_calculate_free_frames() ;
+		freeDiskFrames = pf_calculate_free_frames() ;
+		ptr_allocations[1] = kmalloc(2*Mega-kilo);
+		if ((uint32) ptr_allocations[1] != (ACTUAL_START + 2*Mega)) { correct = 0; cprintf("Wrong start address for the allocated space... check return address of kmalloc\n"); }
+		if ((pf_calculate_free_frames() - freeDiskFrames) != 0) { correct = 0; cprintf("Page file is changed while it's not expected to. (pages are wrongly allocated/de-allocated in PageFile)\n"); }
+		if ((freeFrames - sys_calculate_free_frames()) < 512) { correct = 0; cprintf("Wrong allocation: pages are not loaded successfully into memory\n"); }
+
+		//[DYNAMIC ALLOCATOR]
+		{
+			//1 KB
+			freeFrames = sys_calculate_free_frames() ;
+			freeDiskFrames = pf_calculate_free_frames() ;
+			ptr_allocations[2] = kmalloc(1*kilo);
+			if ((uint32) ptr_allocations[2] < KERNEL_HEAP_START || ptr_allocations[2] >= sbrk(0) || (uint32) ptr_allocations[2] >= da_limit)
+				{ correct = 0; cprintf("Wrong start address for the allocated space... should allocated by the dynamic allocator! check return address of kmalloc and/or sbrk\n"); }
+			if ((pf_calculate_free_frames() - freeDiskFrames) != 0) { correct = 0; cprintf("Page file is changed while it's not expected to. (pages are wrongly allocated/de-allocated in PageFile)\n"); }
+			//if ((freeFrames - sys_calculate_free_frames()) != 1) { correct = 0; cprintf("Wrong allocation: pages are not loaded successfully into memory\n"); }
+
+			//2 KB
+			freeFrames = sys_calculate_free_frames() ;
+			freeDiskFrames = pf_calculate_free_frames() ;
+			ptr_allocations[3] = kmalloc(2*kilo);
+			if ((uint32) ptr_allocations[3] < KERNEL_HEAP_START || ptr_allocations[3] >= sbrk(0) || (uint32) ptr_allocations[3] >= da_limit)
+				{ correct = 0; cprintf("Wrong start address for the allocated space... should allocated by the dynamic allocator! check return address of kmalloc and/or sbrk\n"); }
+			if ((pf_calculate_free_frames() - freeDiskFrames) != 0) { correct = 0; cprintf("Page file is changed while it's not expected to. (pages are wrongly allocated/de-allocated in PageFile)\n"); }
+			//if ((freeFrames - sys_calculate_free_frames()) != 1) { correct = 0; cprintf("Wrong allocation: pages are not loaded successfully into memory\n"); }
+
+			//1.5 KB
+			freeFrames = sys_calculate_free_frames() ;
+			freeDiskFrames = pf_calculate_free_frames() ;
+			ptr_allocations[4] = kmalloc(3*kilo/2);
+			if ((uint32) ptr_allocations[4] < KERNEL_HEAP_START || ptr_allocations[4] >= sbrk(0) || (uint32) ptr_allocations[4] >= da_limit)
+				{ correct = 0; cprintf("Wrong start address for the allocated space... should allocated by the dynamic allocator! check return address of kmalloc and/or sbrk\n"); }
+			if ((pf_calculate_free_frames() - freeDiskFrames) != 0) { correct = 0; cprintf("Page file is changed while it's not expected to. (pages are wrongly allocated/de-allocated in PageFile)\n"); }
+		}
+
+		//7 KB
+		freeFrames = sys_calculate_free_frames() ;
+		freeDiskFrames = pf_calculate_free_frames() ;
+		ptr_allocations[5] = kmalloc(7*kilo);
+		if ((uint32) ptr_allocations[5] != (ACTUAL_START + 4*Mega /*+ 8*kilo*/)) { correct = 0; cprintf("Wrong start address for the allocated space... check return address of kmalloc\n"); }
+		if ((pf_calculate_free_frames() - freeDiskFrames) != 0) { correct = 0; cprintf("Page file is changed while it's not expected to. (pages are wrongly allocated/de-allocated in PageFile)\n"); }
+		if ((freeFrames - sys_calculate_free_frames()) < 2) { correct = 0; cprintf("Wrong allocation: pages are not loaded successfully into memory\n"); }
+
+		//3 MB
+		freeFrames = sys_calculate_free_frames() ;
+		freeDiskFrames = pf_calculate_free_frames() ;
+		ptr_allocations[6] = kmalloc(3*Mega-kilo);
+		if ((uint32) ptr_allocations[6] != (ACTUAL_START + 4*Mega + 8*kilo) ) { correct = 0; cprintf("Wrong start address for the allocated space... check return address of kmalloc\n"); }
+		if ((pf_calculate_free_frames() - freeDiskFrames) != 0) { correct = 0; cprintf("Page file is changed while it's not expected to. (pages are wrongly allocated/de-allocated in PageFile)\n"); }
+		if ((freeFrames - sys_calculate_free_frames()) < 768) { correct = 0; cprintf("Wrong allocation: pages are not loaded successfully into memory\n"); }
+
+		//6 MB
+		freeFrames = sys_calculate_free_frames() ;
+		freeDiskFrames = pf_calculate_free_frames() ;
+		ptr_allocations[7] = kmalloc(6*Mega-kilo);
+		if ((uint32) ptr_allocations[7] != (ACTUAL_START + 7*Mega + 8*kilo)) { correct = 0; cprintf("Wrong start address for the allocated space... check return address of kmalloc\n"); }
+		if ((pf_calculate_free_frames() - freeDiskFrames) != 0) { correct = 0; cprintf("Page file is changed while it's not expected to. (pages are wrongly allocated/de-allocated in PageFile)\n"); }
+		if ((freeFrames - sys_calculate_free_frames()) < 1536) { correct = 0; cprintf("Wrong allocation: pages are not loaded successfully into memory\n"); }
+
+		//14 KB
+		freeFrames = sys_calculate_free_frames() ;
+		freeDiskFrames = pf_calculate_free_frames() ;
+		ptr_allocations[8] = kmalloc(14*kilo);
+		if ((uint32) ptr_allocations[8] != (ACTUAL_START + 13*Mega + 8*kilo)) { correct = 0; cprintf("Wrong start address for the allocated space... check return address of kmalloc\n"); }
+		if ((pf_calculate_free_frames() - freeDiskFrames) != 0) { correct = 0; cprintf("Page file is changed while it's not expected to. (pages are wrongly allocated/de-allocated in PageFile)\n"); }
+		if ((freeFrames - sys_calculate_free_frames()) < 4) { correct = 0; cprintf("Wrong allocation: pages are not loaded successfully into memory\n"); }
+	}
+
+	uint32 allocatedSpace = (13*Mega + 24*kilo + (INITIAL_KHEAP_ALLOCATIONS));
+	uint32 allPAs[allocatedSpace/PAGE_SIZE] ;
+	int numOfFrames = allocatedSpace/PAGE_SIZE ;
+
+	//test kheap_virtual_address after kmalloc only [20%]
+	{
+		uint32 va;
+		uint32 endVA = ACTUAL_START + 13*Mega + 24*kilo;
+		uint32 startVA = da_limit + PAGE_SIZE;
+		int i = 0;
+		int j;
+		for (va = startVA; va < endVA; )
+		{
+			uint32 *ptr_table ;
+			get_page_table(ptr_page_directory, va, &ptr_table);
+			if (ptr_table == NULL)
+				{ correct = 0; panic("one of the kernel tables is wrongly removed! Tables of Kernel Heap should not be removed\n"); }
+
+			for (j = PTX(va); i < numOfFrames && j < 1024 && va < endVA; ++j, ++i)
+			{
+				uint32 offset = j;
+				allPAs[i] = (ptr_table[j] & 0xFFFFF000) + offset;
+				uint32 retrievedVA = kheap_virtual_address(allPAs[i]);
+				//cprintf("va to check = %x\n", va);
+				if (retrievedVA != (va+offset))
+				{
+					if (correct)
+					{
+						cprintf("\nretrievedVA = %x, Actual VA = %x, table entry = %x, khep_pa = %x\n",retrievedVA, va + offset /*+ j*PAGE_SIZE*/, (ptr_table[j] & 0xFFFFF000) , allPAs[i]);
+						correct = 0; cprintf("Wrong kheap_virtual_address\n");
+					}
+				}
+				va+=PAGE_SIZE;
+			}
+		}
+	}
+	if (correct)	eval+=20 ;
+
+	correct = 1 ;
+	//kfree some of the allocated spaces
+	{
+		//kfree 1st 2 MB
+		int freeFrames = sys_calculate_free_frames() ;
+		int freeDiskFrames = pf_calculate_free_frames() ;
+		kfree(ptr_allocations[0]);
+		if ((freeDiskFrames - pf_calculate_free_frames()) != 0) { correct = 0; cprintf("Page file is changed while it's not expected to. (pages are wrongly allocated/de-allocated in PageFile)\n"); }
+		if ((sys_calculate_free_frames() - freeFrames) < 512 ) { correct = 0; cprintf("Wrong kfree: pages in memory are not freed correctly\n"); }
+
+		//kfree 2nd 2 MB
+		freeFrames = sys_calculate_free_frames() ;
+		freeDiskFrames = pf_calculate_free_frames() ;
+		kfree(ptr_allocations[1]);
+		if ((freeDiskFrames - pf_calculate_free_frames()) != 0) { correct = 0; cprintf("Page file is changed while it's not expected to. (pages are wrongly allocated/de-allocated in PageFile)\n"); }
+		if ((sys_calculate_free_frames() - freeFrames) < 512) { correct = 0; cprintf("Wrong kfree: pages in memory are not freed correctly\n"); }
+
+		//kfree 6 MB
+		freeFrames = sys_calculate_free_frames() ;
+		freeDiskFrames = pf_calculate_free_frames() ;
+		kfree(ptr_allocations[7]);
+		if ((freeDiskFrames - pf_calculate_free_frames()) != 0) { correct = 0; cprintf("Page file is changed while it's not expected to. (pages are wrongly allocated/de-allocated in PageFile)\n"); }
+		if ((sys_calculate_free_frames() - freeFrames) < 6*Mega/4096) { correct = 0; cprintf("Wrong kfree: pages in memory are not freed correctly\n"); }
+	}
+
+
+	//test kheap_virtual_address after kmalloc and kfree [20%]
+	{
+		uint32 va;
+		uint32 endVA = ACTUAL_START + 13*Mega + 24*kilo;
+		uint32 startVA = da_limit + PAGE_SIZE;
+		int i = 0;
+		int j;
+		//frames of first 4 MB
+		uint32 startIndex = (INITIAL_KHEAP_ALLOCATIONS) / PAGE_SIZE;
+		for (i = startIndex ; i < startIndex + 4*Mega/PAGE_SIZE; ++i)
+		{
+			uint32 retrievedVA = kheap_virtual_address(allPAs[i]);
+			if (retrievedVA != 0)
+			{
+				if (correct)
+				{ correct = 0; cprintf("Wrong kheap_virtual_address\n"); }
+			}
+
+		}
+		//next frames until 6 MB
+		for (i = startIndex + 4*Mega/PAGE_SIZE; i < startIndex + (7*Mega + 8*kilo)/PAGE_SIZE; ++i)
+		{
+			uint32 retrievedVA = kheap_virtual_address(allPAs[i]);
+			if (retrievedVA != ((startVA + i*PAGE_SIZE) + (allPAs[i] & 0xFFF)))
+			{
+				if (correct)
+				{ correct = 0; cprintf("Wrong kheap_virtual_address\n"); }
+			}
+		}
+		//frames of 6 MB
+		for (i = startIndex + (7*Mega + 8*kilo)/PAGE_SIZE; i < startIndex + (13*Mega + 8*kilo)/PAGE_SIZE; ++i)
+		{
+			uint32 retrievedVA = kheap_virtual_address(allPAs[i]);
+			if (retrievedVA != 0)
+			{
+				if (correct)
+				{ correct = 0; cprintf("Wrong kheap_virtual_address\n"); }
+			}
+		}
+		//frames of last allocation (14 KB)
+		for (i = startIndex + (13*Mega + 8*kilo)/PAGE_SIZE; i < startIndex + (13*Mega + 24*kilo)/PAGE_SIZE; ++i)
+		{
+			uint32 retrievedVA = kheap_virtual_address(allPAs[i]);
+			if (retrievedVA != ((startVA + i*PAGE_SIZE) + (allPAs[i] & 0xFFF)))
+			{
+				if (correct)
+				{ correct = 0; cprintf("Wrong kheap_virtual_address\n"); }
+			}
+		}
+	}
+	if (correct)	eval+=20 ;
+
+	correct = 1 ;
+	//[DYNAMIC ALLOCATOR] test kheap_virtual_address each address [40%]
+	{
+		uint32 va, pa;
+		for (va = KERNEL_HEAP_START; va < (uint32)sbrk(0); va++)
+		{
+			uint32 *ptr_table ;
+			get_page_table(ptr_page_directory, va, &ptr_table);
+			if (ptr_table == NULL)
+				{ correct = 0; panic("one of the kernel tables is wrongly removed! Tables of Kernel Heap should not be removed\n"); }
+			pa = (ptr_table[PTX(va)] & 0xFFFFF000) + (va & 0xFFF);
+			uint32 retrievedVA = kheap_virtual_address(pa);
+			if (retrievedVA != va)
+			{
+				if (correct)
+				{
+					cprintf("\nPA = %x, retrievedVA = %x expectedVA = %x\n", pa, retrievedVA, va);
+					correct = 0; cprintf("Wrong kheap_virtual_address\n");
+				}
+			}
+		}
+	}
+	if (correct)	eval+=40 ;
+
+	correct = 1 ;
+	//test kheap_virtual_address on frames of KERNEL CODE [20%]
+	{
+		uint32 i;
+		for (i = 1*Mega; i < (uint32)(end_of_kernel - KERNEL_BASE); i+=PAGE_SIZE)
+		{
+			uint32 retrievedVA = kheap_virtual_address(i);
+			if (retrievedVA != 0)
+			{
+				if (correct)
+				{
+					cprintf("\nPA = %x, retrievedVA = %x\n", i, retrievedVA);
+					correct = 0; cprintf("Wrong kheap_virtual_address\n");
+				}
+			}
+		}
+	}
+	if (correct)	eval+=20 ;
+
+	cprintf("\ntest kheap_virtual_address completed. Eval = %d%\n", eval);
+
+	return 1;
+
+}
+
