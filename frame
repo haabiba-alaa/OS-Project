@@ -12,3 +12,24 @@ struct FrameInfo {
 	unsigned char isBuffered;
 	struct WorkingSetElement *element;
 };
+
+
+struct FrameInfo *ptr_frame_info;
+uint32 physical_address = /* your physical address */;
+printf("Given Physical Address: %u\n", physical_address);
+
+ptr_frame_info = to_frame_info(physical_address);
+
+if (ptr_frame_info != NULL) {
+    printf("FrameInfo Retrieved\n");
+
+    uint32 offset = physical_address & (PAGE_SIZE - 1);
+    printf("Calculated Offset: %u\n", offset);
+
+    uint32 virtual_address = ptr_frame_info->va + offset;
+    printf("Final Virtual Address: %u\n", virtual_address);
+
+    // Use virtual_address as needed
+} else {
+    printf("Failed to retrieve FrameInfo\n");
+}
