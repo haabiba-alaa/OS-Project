@@ -19,3 +19,23 @@ unsigned int kheap_physical_address(unsigned int virtual_address) {
    }
     return 0;
 }
+
+
+unsigned int kheap_physical_address(unsigned int virtual_address) {
+	uint32 hard_limit = limit + PAGE_SIZE;
+	uint32 va = (uint32)virtual_address;
+
+   if (va >= KERNEL_HEAP_START && va <= limit){
+     return va - start + limit;
+   } else if (va >= hard_limit && va < KERNEL_HEAP_MAX) {
+    uint32* ptr_PT=NULL;
+    get_page_table(ptr_page_directory,va,&ptr_PT);
+    if (ptr_PT !=NULL){
+    return (unsigned int)((ptr_PT[PTX(va)>>12]*PAGE_SIZE)+ (va & 0x00000FFF));
+    }
+    else {
+        // No mapping
+      return 0;
+    }
+    return 0;
+}
