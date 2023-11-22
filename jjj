@@ -1,17 +1,21 @@
-passing argument 2 of 'get_page_table' makes integer from pointer without a cast [-Werror=int-conversion]
 unsigned int kheap_physical_address(unsigned int virtual_address) {
-    // Check if the address is within the block allocator limit
-    if (virtual_address >= start && virtual_address < block_allocator_limit) {
-        // Block allocator strategy
-        return virtual_address - start + block_allocator_limit;
-    } else if (virtual_address >= segment_break && virtual_address < limit) {
-    	unsigned int* ptr_PT=NULL;
-    	get_page_table(ptr_page_directory,virtual_address,&ptr_PT);
-    	return (ptr_PT[PTX(virtual_address)>>12]*PAGE_SIZE);
+	uint32 hard_limit = limit + PAGE_SIZE;
+	uint32 va = (uint32)virtual_address;
 
+   if (va >= KERNEL_HEAP_START && va <= limit){
+      return va - start + limit;
+   } else if (va >= hard_limit && va < KERNEL_HEAP_MAX) {
+    	unsigned int* ptr_PT=NULL;
+    	get_page_table(ptr_page_directory,va,&ptr_PT);
+    	if(ptr_PT!=NULL){
+        uint32 frameNO= va>>12;
+        uint32 offset= va & 0x00000FFF;
+        return (frameNO <<12)*PAGE_SIZE;
+    	}
+    	
     } else {
         // No mapping
         return 0;
-    }
+   }
     return 0;
 }
