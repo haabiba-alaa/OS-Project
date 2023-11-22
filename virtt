@@ -23,5 +23,34 @@ unsigned int kheap_virtual_address(unsigned int physical_address)
     } else {
         printf("Page table not in memory or NULL\n");
         return 0;
+
+
+
+
+
+PA = ffff000, retrievedVA = 0 expectedVA = f6000000
+Wrong kheap_virtual_address
+
+PA = ffff000, retrievedVA = 0 expectedVA = f6000000
+Wrong kheap_virtual_address
+
+unsigned int kheap_virtual_address(unsigned int physical_address)
+{
+    uint32 frame_no = physical_address >> 12;
+    uint32* ptr_page_table;
+
+    //cprintf("Given Physical Address: %u\n", physical_address);
+
+    struct FrameInfo* frame_info;
+    frame_info=to_frame_info(physical_address);
+
+    if (frame_info != NULL) {
+    	uint32 offset=physical_address &(PAGE_SIZE-1);
+    	uint32 va=frame_info->va+offset;
+    	//cprintf("Offset within Page: %u\n", offset);
+    	//cprintf("Calculated Virtual Address: %u\n", va);
+        return va;
+    } else {
+        return 0;
     }
 }
