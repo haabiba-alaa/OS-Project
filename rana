@@ -1,0 +1,9 @@
+if (size <= DYN_ALLOC_MAX_BLOCK_SIZE) {
+        void* result = alloc_block_FF(size);
+        uint32 *ptr_page_table=NULL;
+        struct FrameInfo* frames = get_frame_info(ptr_page_directory,(uint32)result,&ptr_page_table);
+
+        frames->va=(uint32)result;
+        //cprintf("allocFF: Allocated block at %p, Size: %u\n", result, size);
+        return result;
+    }
