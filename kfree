@@ -1,0 +1,47 @@
+void kfree(void* virtual_address) {
+    uint32 hard_limit = limit + PAGE_SIZE;
+    uint32 va = (uint32)virtual_address;
+    uint32* ptr_page_table = NULL; // Declare ptr_page_table
+
+    if (va >= KERNEL_HEAP_START && va <= limit) {
+        // Case: Freeing memory within Block Allocator range
+        // Add any specific print statements or actions for block allocator range
+        free_block(virtual_address);
+    } else if (va >= hard_limit && va < KERNEL_HEAP_MAX) {
+        // Case: Freeing memory within Page Allocator range
+        uint32 page_address = ROUNDDOWN(va, PAGE_SIZE);
+        uint32 startIndex = (va - KERNEL_HEAP_START) / PAGE_SIZE;
+
+        if (heapPages[startIndex] != 0) {
+            uint32 numPages = heapPages[startIndex];
+            for (uint32 i = 0; i < numPages; i++) {
+                int index = startIndex + i;
+                if (heapPages[index] != 0) {
+                    va = KERNEL_HEAP_START + (index * PAGE_SIZE);
+
+                    // Get the FrameInfo associated with the virtual address
+                    struct FrameInfo* frames = get_frame_info(ptr_page_directory, va, &ptr_page_table);
+
+                    // Update the va field in FrameInfo
+                    frames->va = va;
+
+                    // Add print statement to display FrameInfo VA and Virtual Address
+                    cprintf("kfree: FrameInfo VA: 0x%x\n", frames->va);
+                    cprintf("kfree: Virtual Address: 0x%x\n", va);
+
+                    // Unmap the frame
+                    unmap_frame(ptr_page_directory, va);
+
+                    // Free the frame
+                    free_frame(frames);
+
+                    heapPages[index] = 0;
+                }
+            }
+        }
+    } else {
+        // Case: Invalid address
+        // Consider handling this case more gracefully before panicking
+        panic("kfree: Invalid address");
+    }
+}
