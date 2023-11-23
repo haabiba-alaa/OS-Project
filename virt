@@ -1,0 +1,15 @@
+unsigned int kheap_virtual_address(unsigned int physical_address)
+{
+    struct FrameInfo* frame_info;
+     int frame_no=physical_address>>12;
+     uint32 offset= physical_address & 0x00000FFF;
+     uint32 * ptr_page_table;
+     frame_info = get_frame_info(ptr_page_directory, frames_info[frame_no].va, &ptr_page_table);
+     if (frame_info != NULL) {
+    	uint32 va=frame_info->va;
+        return va+offset;
+
+     } else {
+        return 0;
+    }
+}
