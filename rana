@@ -7,3 +7,56 @@ if (size <= DYN_ALLOC_MAX_BLOCK_SIZE) {
         //cprintf("allocFF: Allocated block at %p, Size: %u\n", result, size);
         return result;
     }
+
+
+//test kheap_virtual_address after kmalloc and kfree [20%]
+	{
+		uint32 va;
+		uint32 endVA = ACTUAL_START + 13*Mega + 24*kilo;
+		uint32 startVA = da_limit + PAGE_SIZE;
+		int i = 0;
+		int j;
+		//frames of first 4 MB
+		uint32 startIndex = (INITIAL_KHEAP_ALLOCATIONS) / PAGE_SIZE;
+		for (i = startIndex ; i < startIndex + 4*Mega/PAGE_SIZE; ++i)
+		{
+			uint32 retrievedVA = kheap_virtual_address(allPAs[i]);
+			if (retrievedVA != 0)
+			{
+				if (correct)
+				{ correct = 0; cprintf("Wrong kheap_virtual_address\n"); }
+			}
+
+		}
+		//next frames until 6 MB
+		for (i = startIndex + 4*Mega/PAGE_SIZE; i < startIndex + (7*Mega + 8*kilo)/PAGE_SIZE; ++i)
+		{
+			uint32 retrievedVA = kheap_virtual_address(allPAs[i]);
+			if (retrievedVA != ((startVA + i*PAGE_SIZE) + (allPAs[i] & 0xFFF)))
+			{
+				if (correct)
+				{ correct = 0; cprintf("Wrong kheap_virtual_address\n"); }
+			}
+		}
+		//frames of 6 MB
+		for (i = startIndex + (7*Mega + 8*kilo)/PAGE_SIZE; i < startIndex + (13*Mega + 8*kilo)/PAGE_SIZE; ++i)
+		{
+			uint32 retrievedVA = kheap_virtual_address(allPAs[i]);
+			if (retrievedVA != 0)
+			{
+				if (correct)
+				{ correct = 0; cprintf("Wrong kheap_virtual_address\n"); }
+			}
+		}
+		//frames of last allocation (14 KB)
+		for (i = startIndex + (13*Mega + 8*kilo)/PAGE_SIZE; i < startIndex + (13*Mega + 24*kilo)/PAGE_SIZE; ++i)
+		{
+			uint32 retrievedVA = kheap_virtual_address(allPAs[i]);
+			if (retrievedVA != ((startVA + i*PAGE_SIZE) + (allPAs[i] & 0xFFF)))
+			{
+				if (correct)
+				{ correct = 0; cprintf("Wrong kheap_virtual_address\n"); }
+			}
+		}
+	}
+	if (correct)	eval+=20 
