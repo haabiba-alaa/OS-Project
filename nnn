@@ -1,255 +1,199 @@
+/*
+ * chunk_operations.c
+ *
+ *  Created on: Oct 12, 2022
+ *      Author: HP
+ */
 
-#include <inc/lib.h>
+#include <kern/trap/fault_handler.h>
+#include <kern/disk/pagefile_manager.h>
+#include "kheap.h"
+#include "memory_manager.h"
+#include <inc/queue.h>
+#include <kern/tests/utilities.h>
 
-//==================================================================================//
-//============================== GIVEN FUNCTIONS ===================================//
-//==================================================================================//
+//extern void inctst();
 
-//#define sizeofArr ((USER_HEAP_MAX - USER_HEAP_START) / PAGE_SIZE)
-uint32 user_heap_pages_arr[NUM_OF_UHEAP_PAGES]={0};
+/**********/
+/*[1] RAM CHUNKS MANIPULATION */
+/**********/
 
-int FirstTimeFlag = 1;
-void InitializeUHeap()
+//===============================
+// 1) CUT-PASTE PAGES IN RAM:
+//===============================
+//This function should cut-paste the given number of pages from source_va to dest_va on the given page_directory
+//	If the page table at any destination page in the range is not exist, it should create it
+//	If ANY of the destination pages exists, deny the entire process and return -1. Otherwise, cut-paste the number of pages and return 0
+//	ALL 12 permission bits of the destination should be TYPICAL to those of the source
+//	The given addresses may be not aligned on 4 KB
+int cut_paste_pages(uint32* page_directory, uint32 source_va, uint32 dest_va, uint32 num_of_pages)
 {
-	if(FirstTimeFlag)
-	{
-#if UHP_USE_BUDDY
-		initialize_buddy();
-		cprintf("BUDDY SYSTEM IS INITIALIZED\n");
-#endif
-		FirstTimeFlag = 0;
-	}
+	panic("cut_paste_pages() is not implemented yet...!!");
+
+	return 0 ;
 }
 
-//==================================================================================//
-//============================ REQUIRED FUNCTIONS ==================================//
-//==================================================================================//
-
-//=============================================
-// [1] CHANGE THE BREAK LIMIT OF THE USER HEAP:
-//=============================================
-/2023/
-void* sbrk(int increment)
+//===============================
+// 2) COPY-PASTE RANGE IN RAM:
+//===============================
+//This function should copy-paste the given size from source_va to dest_va on the given page_directory
+//	Ranges DO NOT overlapped.
+//	If ANY of the destination pages exists with READ ONLY permission, deny the entire process and return -1.
+//	If the page table at any destination page in the range is not exist, it should create it
+//	If ANY of the destination pages doesn't exist, create it with the following permissions then copy.
+//	Otherwise, just copy!
+//		1. WRITABLE permission
+//		2. USER/SUPERVISOR permission must be SAME as the one of the source
+//	The given range(s) may be not aligned on 4 KB
+int copy_paste_chunk(uint32* page_directory, uint32 source_va, uint32 dest_va, uint32 size)
 {
-	return (void*) sys_sbrk(increment);
+	panic("copy_paste_chunk() is not implemented yet...!!");
+	return 0;
 }
 
-//=================================
-// [2] ALLOCATE SPACE IN USER HEAP:
-//=================================
-void* malloc(uint32 size)
+//===============================
+// 3) SHARE RANGE IN RAM:
+//===============================
+//This function should copy-paste the given size from source_va to dest_va on the given page_directory
+//	Ranges DO NOT overlapped.
+//	It should set the permissions of the second range by the given perms
+//	If ANY of the destination pages exists, deny the entire process and return -1. Otherwise, share the required range and return 0
+//	If the page table at any destination page in the range is not exist, it should create it
+//	The given range(s) may be not aligned on 4 KB
+int share_chunk(uint32* page_directory, uint32 source_va,uint32 dest_va, uint32 size, uint32 perms)
 {
-	cprintf("Enter malloc\n");
-	//==============================================================
-	//DON'T CHANGE THIS CODE========================================
-	InitializeUHeap();
-	if (size == 0) return NULL ;
-	//==============================================================
-	//TODO: [PROJECT'23.MS2 - #09] [2] USER HEAP - malloc() [User Side]
-	// Write your code here, remove the panic and write your code
-	//panic("malloc() is not implemented yet...!!");
-	//return NULL;
-	//Use sys_isUHeapPlacementStrategyFIRSTFIT() and	sys_isUHeapPlacementStrategyBESTFIT()
-	//to check the current strategy
-	cprintf("malloc: program enters the function\n");
-	if(size<=DYN_ALLOC_MAX_BLOCK_SIZE){
-		return alloc_block_FF(size);
-	}
-	cprintf("Print 1\n");
-	uint32 limit=(uint32)sys_get_hard_limit_user();
-	uint32 hard_limit= limit + PAGE_SIZE;
-	uint32 user_Available_Pages = ((USER_HEAP_MAX - hard_limit) / PAGE_SIZE);
-	size = ROUNDUP(size, PAGE_SIZE);
-	uint32 requiredPages = (size / PAGE_SIZE);
-	uint32 start_of_first_fit_block = 0;
-	uint32 startIndex = (hard_limit - USER_HEAP_START)/PAGE_SIZE;
-	uint32 pageCounter = 0;
-	cprintf("Print 2\n");
-	    if (requiredPages <= user_Available_Pages) {
-	    	cprintf("Print 3\n");
-	        for (uint32 i = startIndex; i < NUM_OF_UHEAP_PAGES; i++) {
-	            if (user_heap_pages_arr[i] == 0)
-	            {
-	                pageCounter++;
-	                if (pageCounter == 1) {
-	                	start_of_first_fit_block = USER_HEAP_START + (i * PAGE_SIZE);//changed line
+	panic("share_chunk() is not implemented yet...!!");
+	return 0;
+}
 
-	                }
-	            }
-	            else {
-	                pageCounter = 0;
-	            }
+//===============================
+// 4) ALLOCATE CHUNK IN RAM:
+//===============================
+//This function should allocate the given virtual range [<va>, <va> + <size>) in the given address space  <page_directory> with the given permissions <perms>.
+//	If ANY of the destination pages exists, deny the entire process and return -1. Otherwise, allocate the required range and return 0
+//	If the page table at any destination page in the range is not exist, it should create it
+//	Allocation should be aligned on page boundary. However, the given range may be not aligned.
+int allocate_chunk(uint32* page_directory, uint32 va, uint32 size, uint32 perms)
+{
+	panic("allocate_chunk() is not implemented yet...!!");
+	return 0;
+}
 
-	            if (pageCounter == requiredPages) {
-	                break;
-	            }
+//=====================================
+// 5) CALCULATE ALLOCATED SPACE IN RAM:
+//=====================================
+void calculate_allocated_space(uint32* page_directory, uint32 sva, uint32 eva, uint32 *num_tables, uint32 *num_pages)
+{
+	panic("calculate_allocated_space() is not implemented yet...!!");
+}
+
+
+//=====================================
+// 6) CALCULATE REQUIRED FRAMES IN RAM:
+//=====================================
+//This function should calculate the required number of pages for allocating and mapping the given range [start va, start va + size) (either for the pages themselves or for the page tables required for mapping)
+//	Pages and/or page tables that are already exist in the range SHOULD NOT be counted.
+//	The given range(s) may be not aligned on 4 KB
+uint32 calculate_required_frames(uint32* page_directory, uint32 sva, uint32 size)
+{
+	panic("calculate_required_frames() is not implemented yet...!!");
+	return 0;
+}
+
+//=================================================================================//
+//===========================END RAM CHUNKS MANIPULATION ==========================//
+//=================================================================================//
+
+/***********/
+/*[2] USER CHUNKS MANIPULATION */
+/***********/
+
+//======================================================
+/// functions used for USER HEAP (malloc, free, ...)
+//======================================================
+
+//=====================================
+// 1) ALLOCATE USER MEMORY:
+//=====================================
+void allocate_user_mem(struct Env* e, uint32 virtual_address, uint32 size)
+{
+	/=============================================================================/
+	//TODO: [PROJECT'23.MS2 - #10] [2] USER HEAP - allocate_user_mem() [Kernel Side]
+	/*REMOVE THESE LINES BEFORE START CODING */
+	//inctst();
+	cprintf("alloc user: program enters the function");
+	  if (e == NULL || e->env_page_directory == NULL) {
+	        return;
+	    }
+
+	    // Get the virtual address of the page directory
+	    uint32* va_page_directory = e->env_page_directory;
+	    uint32 va= (uint32)(ROUNDDOWN(virtual_address,PAGE_SIZE));
+	    size = ROUNDUP(size, PAGE_SIZE);
+	    // Iterate over the range of virtual addresses and allocate pages
+	    for (uint32 current_va = va; current_va < va + size; current_va += PAGE_SIZE) {
+	        // Check if the page table for this virtual address exists
+	        uint32* ptr_page_table = NULL;
+	        int ret= get_page_table(va_page_directory,current_va,&ptr_page_table);
+
+	        // If the page table is not in memory, create a new one
+	        if (ret==TABLE_NOT_EXIST) {
+	        	ptr_page_table = create_page_table(va_page_directory,current_va);
 	        }
 
-			if (pageCounter!=requiredPages)
-			{
-				cprintf("Malloc: Not enough consecutive free pages\n");
-				return NULL;
-			}
-			cprintf("Print 4\n");
-		sys_allocate_user_mem(start_of_first_fit_block, size);
-		cprintf("Print 5\n");
-		uint32 address=start_of_first_fit_block;
-		for (uint32 i = 0; i < requiredPages; i++)
-		{
-			user_heap_pages_arr[((address - USER_HEAP_START) / PAGE_SIZE )] = requiredPages;
-			address += PAGE_SIZE;
-		}
-		cprintf("Print 6\n");
-		return (void*)start_of_first_fit_block;
-
-	}
-	else
-	{
-		cprintf("Malloc: no enough pages\n");
-		return NULL;
-	}
-
-}
+	        ptr_page_table[PTX(current_va)]|=PERM_AVAILABLE;
 
 
-//=================================
-//=================================
-// [3] FREE SPACE FROM USER HEAP:
-//=================================
-void free(void* virtual_address)
-{
-	//TODO: [PROJECT'23.MS2 - #11] [2] USER HEAP - free() [User Side]
-	// Write your code here, remove the panic and write your code
-	//panic("free() is not implemented yet...!!");
-	uint32 va = (uint32)virtual_address;
-	uint32 limit=(uint32)sys_get_hard_limit_user();
-	uint32 hard_limit= limit+PAGE_SIZE;
-	if(va>=USER_HEAP_START && va<=hard_limit){
-		free_block(virtual_address);
-		return;
-	}
-
-	uint32 page_address = ROUNDDOWN(va, PAGE_SIZE);
-	uint32 startIndex=(page_address-USER_HEAP_START)/PAGE_SIZE;
-
-			if (user_heap_pages_arr[startIndex]!=0)
-			{
-				uint32 num_pages = user_heap_pages_arr[startIndex];
-
-
-				for (uint32 j = 0; j < num_pages; j++)
-				{
-					user_heap_pages_arr[j] = 0;
-				}
-
-				sys_free_user_mem(va, num_pages * PAGE_SIZE);
-
-
-//				alloced_pages[i] = alloced_pages[idx - 1];
-//				idx--;
-
-				return;
-
-		}
-
-}
-
-//=================================
-// [4] ALLOCATE SHARED VARIABLE:
-//=================================
-void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable)
-{
-	//==============================================================
-	//DON'T CHANGE THIS CODE========================================
-	InitializeUHeap();
-	if (size == 0) return NULL ;
-	//==============================================================
-	panic("smalloc() is not implemented yet...!!");
-	return NULL;
-}
-
-//========================================
-// [5] SHARE ON ALLOCATED SHARED VARIABLE:
-//========================================
-void* sget(int32 ownerEnvID, char *sharedVarName)
-{
-	//==============================================================
-	//DON'T CHANGE THIS CODE========================================
-	InitializeUHeap();
-	//==============================================================
-	// Write your code here, remove the panic and write your code
-	panic("sget() is not implemented yet...!!");
-	return NULL;
-}
-
-
-//==================================================================================//
-//============================== BONUS FUNCTIONS ===================================//
-//==================================================================================//
-
-//=================================
-// REALLOC USER SPACE:
-//=================================
-//	Attempts to resize the allocated space at "virtual_address" to "new_size" bytes,
-//	possibly moving it in the heap.
-//	If successful, returns the new virtual_address, in which case the old virtual_address must no longer be accessed.
-//	On failure, returns a null pointer, and the old virtual_address remains valid.
-
-//	A call with virtual_address = null is equivalent to malloc().
-//	A call with new_size = zero is equivalent to free().
-
-//  Hint: you may need to use the sys_move_user_mem(...)
-//		which switches to the kernel mode, calls move_user_mem(...)
-//		in "kern/mem/chunk_operations.c", then switch back to the user mode here
-//	the move_user_mem() function is empty, make sure to implement it.
-void *realloc(void *virtual_address, uint32 new_size)
-{
-	//==============================================================
-	//DON'T CHANGE THIS CODE========================================
-	InitializeUHeap();
-	//==============================================================
+	    }
+	    return;
+	/=============================================================================/
 
 	// Write your code here, remove the panic and write your code
-	panic("realloc() is not implemented yet...!!");
-	return NULL;
-
+	//panic("allocate_user_mem() is not implemented yet...!!");
 }
 
-
-//=================================
-// FREE SHARED VARIABLE:
-//=================================
-//	This function frees the shared variable at the given virtual_address
-//	To do this, we need to switch to the kernel, free the pages AND "EMPTY" PAGE TABLES
-//	from main memory then switch back to the user again.
-//
-//	use sys_freeSharedObject(...); which switches to the kernel mode,
-//	calls freeSharedObject(...) in "shared_memory_manager.c", then switch back to the user mode here
-//	the freeSharedObject() function is empty, make sure to implement it.
-
-void sfree(void* virtual_address)
+//=====================================
+// 2) FREE USER MEMORY:
+//=====================================
+void free_user_mem(struct Env* e, uint32 virtual_address, uint32 size)
 {
+	/==========================================================================/
+	//TODO: [PROJECT'23.MS2 - #12] [2] USER HEAP - free_user_mem() [Kernel Side]
+	/*REMOVE THESE LINES BEFORE START CODING */
+	//inctst();
+	return;
+	/==========================================================================/
+
 	// Write your code here, remove the panic and write your code
-	panic("sfree() is not implemented yet...!!");
+	//panic("free_user_mem() is not implemented yet...!!");
+
+	//TODO: [PROJECT'23.MS2 - BONUS#2] [2] USER HEAP - free_user_mem() IN O(1): removing page from WS List instead of searching the entire list
+
 }
 
-
-//==================================================================================//
-//========================== MODIFICATION FUNCTIONS ================================//
-//==================================================================================//
-
-void expand(uint32 newSize)
+//=====================================
+// 2) FREE USER MEMORY (BUFFERING):
+//=====================================
+void __free_user_mem_with_buffering(struct Env* e, uint32 virtual_address, uint32 size)
 {
-	panic("Not Implemented");
-
+	// your code is here, remove the panic and write your code
+	panic("__free_user_mem_with_buffering() is not implemented yet...!!");
 }
-void shrink(uint32 newSize)
+
+//=====================================
+// 3) MOVE USER MEMORY:
+//=====================================
+void move_user_mem(struct Env* e, uint32 src_virtual_address, uint32 dst_virtual_address, uint32 size)
 {
-	panic("Not Implemented");
+	//your code is here, remove the panic and write your code
+	panic("move_user_mem() is not implemented yet...!!");
 
+	// This function should move all pages from "src_virtual_address" to "dst_virtual_address"
+	// with the given size
+	// After finished, the src_virtual_address must no longer be accessed/exist in either page file
+	// or main memory
 }
-void freeHeap(void* virtual_address)
-{
-	panic("Not Implemented");
 
-}
+//=================================================================================//
+//========================== END USER CHUNKS MANIPULATION =========================//
+//=================================================================================//
