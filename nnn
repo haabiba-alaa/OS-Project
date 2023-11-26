@@ -1,7 +1,7 @@
 /*
- * chunk_operations.c
+ * working_set_manager.c
  *
- *  Created on: Oct 12, 2022
+ *  Created on: Oct 11, 2022
  *      Author: HP
  */
 
@@ -9,191 +9,348 @@
 #include <kern/disk/pagefile_manager.h>
 #include "kheap.h"
 #include "memory_manager.h"
-#include <inc/queue.h>
-#include <kern/tests/utilities.h>
 
-//extern void inctst();
-
-/**********/
-/*[1] RAM CHUNKS MANIPULATION */
-/**********/
-
-//===============================
-// 1) CUT-PASTE PAGES IN RAM:
-//===============================
-//This function should cut-paste the given number of pages from source_va to dest_va on the given page_directory
-//	If the page table at any destination page in the range is not exist, it should create it
-//	If ANY of the destination pages exists, deny the entire process and return -1. Otherwise, cut-paste the number of pages and return 0
-//	ALL 12 permission bits of the destination should be TYPICAL to those of the source
-//	The given addresses may be not aligned on 4 KB
-int cut_paste_pages(uint32* page_directory, uint32 source_va, uint32 dest_va, uint32 num_of_pages)
+///============================================================================================
+/// Dealing with environment working set
+#if USE_KHEAP
+inline struct WorkingSetElement* env_page_ws_list_create_element(struct Env* e, uint32 virtual_address)
 {
-	panic("cut_paste_pages() is not implemented yet...!!");
-
-	return 0 ;
-}
-
-//===============================
-// 2) COPY-PASTE RANGE IN RAM:
-//===============================
-//This function should copy-paste the given size from source_va to dest_va on the given page_directory
-//	Ranges DO NOT overlapped.
-//	If ANY of the destination pages exists with READ ONLY permission, deny the entire process and return -1.
-//	If the page table at any destination page in the range is not exist, it should create it
-//	If ANY of the destination pages doesn't exist, create it with the following permissions then copy.
-//	Otherwise, just copy!
-//		1. WRITABLE permission
-//		2. USER/SUPERVISOR permission must be SAME as the one of the source
-//	The given range(s) may be not aligned on 4 KB
-int copy_paste_chunk(uint32* page_directory, uint32 source_va, uint32 dest_va, uint32 size)
-{
-	panic("copy_paste_chunk() is not implemented yet...!!");
-	return 0;
-}
-
-//===============================
-// 3) SHARE RANGE IN RAM:
-//===============================
-//This function should copy-paste the given size from source_va to dest_va on the given page_directory
-//	Ranges DO NOT overlapped.
-//	It should set the permissions of the second range by the given perms
-//	If ANY of the destination pages exists, deny the entire process and return -1. Otherwise, share the required range and return 0
-//	If the page table at any destination page in the range is not exist, it should create it
-//	The given range(s) may be not aligned on 4 KB
-int share_chunk(uint32* page_directory, uint32 source_va,uint32 dest_va, uint32 size, uint32 perms)
-{
-	panic("share_chunk() is not implemented yet...!!");
-	return 0;
-}
-
-//===============================
-// 4) ALLOCATE CHUNK IN RAM:
-//===============================
-//This function should allocate the given virtual range [<va>, <va> + <size>) in the given address space  <page_directory> with the given permissions <perms>.
-//	If ANY of the destination pages exists, deny the entire process and return -1. Otherwise, allocate the required range and return 0
-//	If the page table at any destination page in the range is not exist, it should create it
-//	Allocation should be aligned on page boundary. However, the given range may be not aligned.
-int allocate_chunk(uint32* page_directory, uint32 va, uint32 size, uint32 perms)
-{
-	panic("allocate_chunk() is not implemented yet...!!");
-	return 0;
-}
-
-//=====================================
-// 5) CALCULATE ALLOCATED SPACE IN RAM:
-//=====================================
-void calculate_allocated_space(uint32* page_directory, uint32 sva, uint32 eva, uint32 *num_tables, uint32 *num_pages)
-{
-	panic("calculate_allocated_space() is not implemented yet...!!");
-}
-
-
-//=====================================
-// 6) CALCULATE REQUIRED FRAMES IN RAM:
-//=====================================
-//This function should calculate the required number of pages for allocating and mapping the given range [start va, start va + size) (either for the pages themselves or for the page tables required for mapping)
-//	Pages and/or page tables that are already exist in the range SHOULD NOT be counted.
-//	The given range(s) may be not aligned on 4 KB
-uint32 calculate_required_frames(uint32* page_directory, uint32 sva, uint32 size)
-{
-	panic("calculate_required_frames() is not implemented yet...!!");
-	return 0;
-}
-
-//=================================================================================//
-//===========================END RAM CHUNKS MANIPULATION ==========================//
-//=================================================================================//
-
-/***********/
-/*[2] USER CHUNKS MANIPULATION */
-/***********/
-
-//======================================================
-/// functions used for USER HEAP (malloc, free, ...)
-//======================================================
-
-//=====================================
-// 1) ALLOCATE USER MEMORY:
-//=====================================
-void allocate_user_mem(struct Env* e, uint32 virtual_address, uint32 size)
-{
-	/=============================================================================/
-	//TODO: [PROJECT'23.MS2 - #10] [2] USER HEAP - allocate_user_mem() [Kernel Side]
-	/*REMOVE THESE LINES BEFORE START CODING */
-	//inctst();
-	cprintf("alloc user: program enters the function");
-	  if (e == NULL || e->env_page_directory == NULL) {
-	        return;
-	    }
-
-	    // Get the virtual address of the page directory
-	    uint32* va_page_directory = e->env_page_directory;
-	    uint32 va= (uint32)(ROUNDDOWN(virtual_address,PAGE_SIZE));
-	    size = ROUNDUP(size, PAGE_SIZE);
-	    // Iterate over the range of virtual addresses and allocate pages
-	    for (uint32 current_va = va; current_va < va + size; current_va += PAGE_SIZE) {
-	        // Check if the page table for this virtual address exists
-	        uint32* ptr_page_table = NULL;
-	        int ret= get_page_table(va_page_directory,current_va,&ptr_page_table);
-
-	        // If the page table is not in memory, create a new one
-	        if (ret==TABLE_NOT_EXIST) {
-	        	ptr_page_table = create_page_table(va_page_directory,current_va);
-	        }
-
-	        ptr_page_table[PTX(current_va)]|=PERM_AVAILABLE;
-
-
-	    }
-	    return;
-	/=============================================================================/
-
+	//TODO: [PROJECT'23.MS2 - #14] [3] PAGE FAULT HANDLER - Create a new working set element
 	// Write your code here, remove the panic and write your code
-	//panic("allocate_user_mem() is not implemented yet...!!");
+	//panic("env_page_ws_list_create_element() is not implemented yet...!!");
+	  struct WorkingSetElement* new_element = (struct WorkingSetElement*) kmalloc(sizeof(struct WorkingSetElement));
+	  if (new_element!=NULL)
+	  {
+		 new_element->virtual_address = virtual_address;
+		 return new_element;
+	  }
+
+	    return NULL;
+
+	    // Initialize the element with the given virtual address
+
+
+	    // Set the previous and next pointers to NULL
+
+
+	    // Return the pointer to the created object
+
+}
+inline void env_page_ws_invalidate(struct Env* e, uint32 virtual_address)
+{
+	if (isPageReplacmentAlgorithmLRU(PG_REP_LRU_LISTS_APPROX))
+	{
+		bool found = 0;
+		struct WorkingSetElement *ptr_WS_element = NULL;
+		LIST_FOREACH(ptr_WS_element, &(e->ActiveList))
+		{
+			if(ROUNDDOWN(ptr_WS_element->virtual_address,PAGE_SIZE) == ROUNDDOWN(virtual_address,PAGE_SIZE))
+			{
+				struct WorkingSetElement* ptr_tmp_WS_element = LIST_FIRST(&(e->SecondList));
+				unmap_frame(e->env_page_directory, ptr_WS_element->virtual_address);
+				LIST_REMOVE(&(e->ActiveList), ptr_WS_element);
+				if(ptr_tmp_WS_element != NULL)
+				{
+					LIST_REMOVE(&(e->SecondList), ptr_tmp_WS_element);
+					LIST_INSERT_TAIL(&(e->ActiveList), ptr_tmp_WS_element);
+					pt_set_page_permissions(e->env_page_directory, ptr_tmp_WS_element->virtual_address, PERM_PRESENT, 0);
+				}
+				found = 1;
+				break;
+			}
+		}
+
+		if (!found)
+		{
+			ptr_WS_element = NULL;
+			LIST_FOREACH(ptr_WS_element, &(e->SecondList))
+			{
+				if(ROUNDDOWN(ptr_WS_element->virtual_address,PAGE_SIZE) == ROUNDDOWN(virtual_address,PAGE_SIZE))
+				{
+					unmap_frame(e->env_page_directory, ptr_WS_element->virtual_address);
+					LIST_REMOVE(&(e->SecondList), ptr_WS_element);
+
+					kfree(ptr_WS_element);
+				}
+			}
+		}
+	}
+	else
+	{
+		struct WorkingSetElement *wse;
+		LIST_FOREACH(wse, &(e->page_WS_list))
+		{
+			if(ROUNDDOWN(wse->virtual_address,PAGE_SIZE) == ROUNDDOWN(virtual_address,PAGE_SIZE))
+			{
+				if (e->page_last_WS_element == wse)
+				{
+					e->page_last_WS_element = LIST_NEXT(wse);
+				}
+				LIST_REMOVE(&(e->page_WS_list), wse);
+
+				kfree(wse);
+
+				break;
+			}
+		}
+	}
 }
 
-//=====================================
-// 2) FREE USER MEMORY:
-//=====================================
-void free_user_mem(struct Env* e, uint32 virtual_address, uint32 size)
+void env_page_ws_print(struct Env *e)
 {
-	/==========================================================================/
-	//TODO: [PROJECT'23.MS2 - #12] [2] USER HEAP - free_user_mem() [Kernel Side]
-	/*REMOVE THESE LINES BEFORE START CODING */
-	//inctst();
+	if (isPageReplacmentAlgorithmLRU(PG_REP_LRU_LISTS_APPROX))
+	{
+		int i = 0;
+		cprintf("ActiveList:\n============\n") ;
+		struct WorkingSetElement * ptr_WS_element ;
+		LIST_FOREACH(ptr_WS_element, &(e->ActiveList))
+		{
+			cprintf("%d:	%x\n", i++, ptr_WS_element->virtual_address);
+		}
+		cprintf("\nSecondList:\n============\n") ;
+		LIST_FOREACH(ptr_WS_element, &(e->SecondList))
+		{
+			cprintf("%d:	%x\n", i++, ptr_WS_element->virtual_address);
+		}
+	}
+	else
+	{
+		uint32 i=0;
+		cprintf("PAGE WS:\n");
+		struct WorkingSetElement *wse = NULL;
+		LIST_FOREACH(wse, &(e->page_WS_list))
+		{
+			uint32 virtual_address = wse->virtual_address;
+			uint32 time_stamp = wse->time_stamp;
+
+			uint32 perm = pt_get_page_permissions(e->env_page_directory, virtual_address) ;
+			char isModified = ((perm&PERM_MODIFIED) ? 1 : 0);
+			char isUsed= ((perm&PERM_USED) ? 1 : 0);
+			char isBuffered= ((perm&PERM_BUFFERED) ? 1 : 0);
+
+			cprintf("%d: %x",i, virtual_address);
+
+			//2021
+			cprintf(", used= %d, modified= %d, buffered= %d, time stamp= %x, sweeps_cnt= %d",
+					isUsed, isModified, isBuffered, time_stamp, wse->sweeps_counter) ;
+
+			if(wse == e->page_last_WS_element)
+			{
+				cprintf(" <--");
+			}
+			cprintf("\n");
+			i++;
+		}
+		for (; i < e->page_WS_max_size; ++i)
+		{
+			cprintf("EMPTY LOCATION");
+		}
+	}
+}
+#else
+inline uint32 env_page_ws_get_size(struct Env *e)
+{
+	int i=0, counter=0;
+	for(;i<e->page_WS_max_size; i++) if(e->ptr_pageWorkingSet[i].empty == 0) counter++;
+	return counter;
+}
+
+inline void env_page_ws_invalidate(struct Env* e, uint32 virtual_address)
+{
+	int i=0;
+	for(;i<e->page_WS_max_size; i++)
+	{
+		if(ROUNDDOWN(e->ptr_pageWorkingSet[i].virtual_address,PAGE_SIZE) == ROUNDDOWN(virtual_address,PAGE_SIZE))
+		{
+			env_page_ws_clear_entry(e, i);
+			break;
+		}
+	}
+}
+
+inline void env_page_ws_set_entry(struct Env* e, uint32 entry_index, uint32 virtual_address)
+{
+	assert(entry_index >= 0 && entry_index < e->page_WS_max_size);
+	assert(virtual_address >= 0 && virtual_address < USER_TOP);
+	e->ptr_pageWorkingSet[entry_index].virtual_address = ROUNDDOWN(virtual_address,PAGE_SIZE);
+	e->ptr_pageWorkingSet[entry_index].empty = 0;
+
+	e->ptr_pageWorkingSet[entry_index].time_stamp = 0x80000000;
+	//e->ptr_pageWorkingSet[entry_index].time_stamp = time;
 	return;
-	/==========================================================================/
-
-	// Write your code here, remove the panic and write your code
-	//panic("free_user_mem() is not implemented yet...!!");
-
-	//TODO: [PROJECT'23.MS2 - BONUS#2] [2] USER HEAP - free_user_mem() IN O(1): removing page from WS List instead of searching the entire list
-
 }
 
-//=====================================
-// 2) FREE USER MEMORY (BUFFERING):
-//=====================================
-void __free_user_mem_with_buffering(struct Env* e, uint32 virtual_address, uint32 size)
+inline void env_page_ws_clear_entry(struct Env* e, uint32 entry_index)
 {
-	// your code is here, remove the panic and write your code
-	panic("__free_user_mem_with_buffering() is not implemented yet...!!");
+	assert(entry_index >= 0 && entry_index < (e->page_WS_max_size));
+	e->ptr_pageWorkingSet[entry_index].virtual_address = 0;
+	e->ptr_pageWorkingSet[entry_index].empty = 1;
+	e->ptr_pageWorkingSet[entry_index].time_stamp = 0;
 }
 
-//=====================================
-// 3) MOVE USER MEMORY:
-//=====================================
-void move_user_mem(struct Env* e, uint32 src_virtual_address, uint32 dst_virtual_address, uint32 size)
+inline uint32 env_page_ws_get_virtual_address(struct Env* e, uint32 entry_index)
 {
-	//your code is here, remove the panic and write your code
-	panic("move_user_mem() is not implemented yet...!!");
-
-	// This function should move all pages from "src_virtual_address" to "dst_virtual_address"
-	// with the given size
-	// After finished, the src_virtual_address must no longer be accessed/exist in either page file
-	// or main memory
+	assert(entry_index >= 0 && entry_index < (e->page_WS_max_size));
+	return ROUNDDOWN(e->ptr_pageWorkingSet[entry_index].virtual_address,PAGE_SIZE);
 }
 
-//=================================================================================//
-//========================== END USER CHUNKS MANIPULATION =========================//
-//=================================================================================//
+inline uint32 env_page_ws_get_time_stamp(struct Env* e, uint32 entry_index)
+{
+	assert(entry_index >= 0 && entry_index < (e->page_WS_max_size));
+	return e->ptr_pageWorkingSet[entry_index].time_stamp;
+}
+
+inline uint32 env_page_ws_is_entry_empty(struct Env* e, uint32 entry_index)
+{
+	return e->ptr_pageWorkingSet[entry_index].empty;
+}
+
+void env_page_ws_print(struct Env *e)
+{
+	if (isPageReplacmentAlgorithmLRU(PG_REP_LRU_LISTS_APPROX))
+	{
+		int i = 0;
+		cprintf("ActiveList:\n============\n") ;
+		struct WorkingSetElement * ptr_WS_element ;
+		LIST_FOREACH(ptr_WS_element, &(e->ActiveList))
+		{
+			cprintf("%d:	%x\n", i++, ptr_WS_element->virtual_address);
+		}
+		cprintf("\nSecondList:\n============\n") ;
+		LIST_FOREACH(ptr_WS_element, &(e->SecondList))
+		{
+			cprintf("%d:	%x\n", i++, ptr_WS_element->virtual_address);
+		}
+	}
+	else
+	{
+		uint32 i;
+		cprintf("PAGE WS:\n");
+		for(i=0; i< (e->page_WS_max_size); i++ )
+		{
+			if (e->ptr_pageWorkingSet[i].empty)
+			{
+				cprintf("EMPTY LOCATION");
+				if(i==e->page_last_WS_index )
+				{
+					cprintf("		<--");
+				}
+				cprintf("\n");
+				continue;
+			}
+			uint32 virtual_address = e->ptr_pageWorkingSet[i].virtual_address;
+			uint32 time_stamp = e->ptr_pageWorkingSet[i].time_stamp;
+
+			uint32 perm = pt_get_page_permissions(e->env_page_directory, virtual_address) ;
+			char isModified = ((perm&PERM_MODIFIED) ? 1 : 0);
+			char isUsed= ((perm&PERM_USED) ? 1 : 0);
+			char isBuffered= ((perm&PERM_BUFFERED) ? 1 : 0);
+
+
+			cprintf("address @ %d = %x",i, e->ptr_pageWorkingSet[i].virtual_address);
+
+			//2021
+			cprintf(", used= %d, modified= %d, buffered= %d, time stamp= %x, sweeps_cnt= %d", isUsed, isModified, isBuffered, time_stamp, e->ptr_pageWorkingSet[i].sweeps_counter) ;
+
+			if(i==e->page_last_WS_index )
+			{
+				cprintf(" <--");
+			}
+			cprintf("\n");
+		}
+	}
+}
+#endif
+// Table Working Set =========================================================
+
+void env_table_ws_print(struct Env *e)
+{
+	uint32 i;
+	cprintf("---------------------------------------------------\n");
+	cprintf("TABLE WS:\n");
+	for(i=0; i< __TWS_MAX_SIZE; i++ )
+	{
+		if (e->__ptr_tws[i].empty)
+		{
+			cprintf("EMPTY LOCATION");
+			if(i==e->table_last_WS_index )
+			{
+				cprintf("		<--");
+			}
+			cprintf("\n");
+			continue;
+		}
+		uint32 virtual_address = e->__ptr_tws[i].virtual_address;
+		cprintf("env address at %d = %x",i, e->__ptr_tws[i].virtual_address);
+
+		cprintf(", used bit = %d, time stamp = %d", pd_is_table_used(e->env_page_directory, virtual_address), e->__ptr_tws[i].time_stamp);
+		if(i==e->table_last_WS_index )
+		{
+			cprintf(" <--");
+		}
+		cprintf("\n");
+	}
+}
+
+inline uint32 env_table_ws_get_size(struct Env *e)
+{
+	int i=0, counter=0;
+	for(;i<_TWS_MAX_SIZE; i++) if(e->_ptr_tws[i].empty == 0) counter++;
+	return counter;
+}
+
+inline void env_table_ws_invalidate(struct Env* e, uint32 virtual_address)
+{
+	int i=0;
+	for(;i<__TWS_MAX_SIZE; i++)
+	{
+		if(ROUNDDOWN(e->__ptr_tws[i].virtual_address,PAGE_SIZE*1024) == ROUNDDOWN(virtual_address,PAGE_SIZE*1024))
+		{
+			env_table_ws_clear_entry(e, i);
+			break;
+		}
+	}
+}
+
+inline void env_table_ws_set_entry(struct Env* e, uint32 entry_index, uint32 virtual_address)
+{
+	assert(entry_index >= 0 && entry_index < __TWS_MAX_SIZE);
+	assert(virtual_address >= 0 && virtual_address < USER_TOP);
+	e->__ptr_tws[entry_index].virtual_address = ROUNDDOWN(virtual_address,PAGE_SIZE*1024);
+	e->__ptr_tws[entry_index].empty = 0;
+
+	//e->__ptr_tws[entry_index].time_stamp = time;
+	e->__ptr_tws[entry_index].time_stamp = 0x80000000;
+	return;
+}
+
+inline void env_table_ws_clear_entry(struct Env* e, uint32 entry_index)
+{
+	assert(entry_index >= 0 && entry_index < __TWS_MAX_SIZE);
+	e->__ptr_tws[entry_index].virtual_address = 0;
+	e->__ptr_tws[entry_index].empty = 1;
+	e->__ptr_tws[entry_index].time_stamp = 0;
+}
+
+inline uint32 env_table_ws_get_virtual_address(struct Env* e, uint32 entry_index)
+{
+	assert(entry_index >= 0 && entry_index < __TWS_MAX_SIZE);
+	return ROUNDDOWN(e->__ptr_tws[entry_index].virtual_address,PAGE_SIZE*1024);
+}
+
+
+inline uint32 env_table_ws_get_time_stamp(struct Env* e, uint32 entry_index)
+{
+	assert(entry_index >= 0 && entry_index < __TWS_MAX_SIZE);
+	return e->__ptr_tws[entry_index].time_stamp;
+}
+
+inline uint32 env_table_ws_is_entry_empty(struct Env* e, uint32 entry_index)
+{
+	return e->__ptr_tws[entry_index].empty;
+}
+
+///=================================================================================================
+///=================================================================================================
+///=================================================================================================
+///======================================
