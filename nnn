@@ -1,1 +1,76 @@
-https://cisasuedu-my.sharepoint.com/personal/ahmed_salah_cis_asu_edu_eg/_layouts/15/onedrive.aspx?ga=1&id=%2Fpersonal%2Fahmed%5Fsalah%5Fcis%5Fasu%5Fedu%5Feg%2FDocuments%2F%5B2024%5D%2F%5BOS%2724%2ETerm1%5D%2FStudents%2F3%20Project%2FMS2%2FUPDATED%20TESTS%2Fuser%2Ftst%5Fmalloc%5F1%2Ec&parent=%2Fpersonal%2Fahmed%5Fsalah%5Fcis%5Fasu%5Fedu%5Feg%2FDocuments%2F%5B2024%5D%2F%5BOS%2724%2ETerm1%5D%2FStudents%2F3%20Project%2FMS2%2FUPDATED%20TESTS%2Fuser
+void* sys_sbrk(int increment) {
+    // TODO: [PROJECT'23.MS2 - #08] [2] USER HEAP - Block Allocator - sys_sbrk() [Kernel Side]
+    // MS2: COMMENT THIS LINE BEFORE START CODING====
+    // return (void*)-1;
+    // ====================================================
+
+    /* 2023 */
+    /* increment > 0: move the segment break of the current user program to increase the size of its heap,
+     * you should allocate NOTHING,
+     * and returns the address of the previous break (i.e. the beginning of newly mapped memory).
+     * increment = 0: just return the current position of the segment break
+     * increment < 0: move the segment break of the current user program to decrease the size of its heap,
+     * you should deallocate pages that no longer contain part of the heap as necessary.
+     * and returns the address of the new break (i.e. the end of the current heap space).
+     *
+     * NOTES:
+     *  1) You should only have to allocate or deallocate pages if the segment break crosses a page boundary
+     *  2) New segment break should be aligned on a page boundary to avoid the "No Man's Land" problem
+     *  3) As in a real OS, allocate pages lazily. While sbrk moves the segment break, pages are not allocated
+     *     until the user program actually tries to access data in its heap (i.e., will be allocated via the fault handler).
+     *  4) Allocating additional pages for a process’ heap will fail if, for example, the free frames are exhausted
+     *     or the break exceeds the limit of the dynamic allocator. If sys_sbrk fails, the net effect should
+     *     be that sys_sbrk returns (void*) -1, and that the segment break and the process heap are unaffected.
+     *     You might have to undo any operations you have done so far in this case.
+     */
+
+    struct Env* env = curenv; // the current running Environment to adjust its break limit
+    cprintf("sysSBrk: program enters the function\n");
+    if (increment < 0) {
+        increment = ROUNDDOWN(increment, PAGE_SIZE);
+    } else if (increment > 0) {
+        increment = ROUNDUP(increment, PAGE_SIZE);
+    }
+    uint32 numPages=increment/PAGE_SIZE;
+
+    uint32 current_break = (uint32)env->da_break;
+    uint32 Prev_break = (uint32)current_break;
+    uint32 new_break = (uint32)ROUNDUP((current_break + increment), PAGE_SIZE);
+
+    env->da_break = (uint32)new_break;
+    uint32 limit= (uint32)sys_get_hard_limit_user();
+    uint32 hard_limit= limit+PAGE_SIZE;
+    if (new_break > hard_limit) {
+    	cprintf("sysSBrk: program out the function\n");
+        return (void*)-1;
+    }
+
+    if (increment > 0) {
+        struct FrameInfo* frames = NULL;
+        while (current_break <= new_break) {
+            //frames = NULL;
+            //int frame = allocate_frame(&frames);
+            //if (frame != 0) {
+            //    return (void*)-1;
+            //}
+           // map_frame(ptr_page_directory, frames, current_break, PERM_WRITEABLE);
+        	allocate_user_mem(curenv,current_break,numPages*PAGE_SIZE);
+            current_break = (current_break + PAGE_SIZE);
+        }
+        cprintf("sysSBrk: program out the function\n");
+        return (void*)Prev_break;
+    }
+    else if (increment < 0) {
+            while (current_break >= new_break) {
+                unmap_frame(ptr_page_directory, (uint32)current_break);
+                current_break = (current_break - PAGE_SIZE);
+            }
+            cprintf("sysSBrk: program out the function\n");
+            return (void*)new_break;
+        } else {
+        	cprintf("sysSBrk: program out the function\n");
+            return (void*)current_break;
+        }
+    return NULL;
+
+}
