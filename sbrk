@@ -1,0 +1,48 @@
+void* sbrk(int increment) {
+	if(increment<0){
+		increment=ROUNDDOWN(increment,PAGE_SIZE);
+	}
+	else if(increment>0){
+		increment=ROUNDUP(increment,PAGE_SIZE);
+	}
+    uint32 current_break =(uint32) segment_break;
+    uint32 Prev_break = (uint32) current_break;
+    uint32 new_break = (uint32) ROUNDUP((current_break + increment), PAGE_SIZE);
+    segment_break = (uint32)new_break;
+
+    if (new_break > limit) {
+        panic("segment break exceeds hard limit");
+    }
+
+    //cprintf("sbrk: Requested increment: %d, Current Break: %x, New Break: %x\n", ROUNDUP(increment,PAGE_SIZE), (void*)current_break, (void*)new_break);
+
+    // Case: Incrementing the heap size
+    if (increment > 0) {
+    	struct FrameInfo* frames = NULL;
+        while (current_break <= new_break) {
+        	frames=NULL;
+            int frame = allocate_frame(&frames);
+            if (frame != 0) {
+                panic("out of memory");
+            }
+            map_frame(ptr_page_directory, frames, current_break, PERM_WRITEABLE);
+            //cprintf("sbrk: Mapped frame at %p\n", (void*)current_break);
+            frames->va=current_break;
+            current_break = (current_break + PAGE_SIZE);
+
+        }
+       // cprintf("sbrk: Heap size increased\n");
+        return (void*)Prev_break;
+    } else if (increment < 0) {
+        while (current_break >= new_break) {
+            unmap_frame(ptr_page_directory, (uint32)current_break);
+           // cprintf("sbrk: Unmapped frame at %p\n", (void*)current_break);
+            current_break = (current_break - PAGE_SIZE);
+        }
+        //cprintf("sbrk: Heap size decreased\n");
+        return (void*)new_break;
+    } else {
+        //cprintf("sbrk: No change in heap size\n");
+        return (void*)current_break;
+    }
+}
