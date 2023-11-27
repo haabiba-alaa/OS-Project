@@ -1,0 +1,22 @@
+struct BlockMetaData* newAllocationNode = sbrk(size + sizeOfMetaData());
+
+if (newAllocationNode == (void*)-1) {
+        return NULL;
+    }
+else{
+    	LIST_INSERT_TAIL(&MYblock_list,newAllocationNode);
+    	newAllocationNode->is_free=0;
+    	newAllocationNode->size=size + sizeOfMetaData();
+    	if((uint32)sbrk(0)-((uint32)newAllocationNode+size+sizeOfMetaData())> sizeOfMetaData()){
+    	struct BlockMetaData* newBlock = (struct BlockMetaData*)((uint32)newAllocationNode+size + sizeOfMetaData());
+		newBlock->size = (uint32)sbrk(0)-((uint32)newAllocationNode+size+sizeOfMetaData());
+	    newBlock->is_free = 1;
+		LIST_INSERT_TAIL(&MYblock_list, newBlock);
+    	}
+    	else{
+    		newAllocationNode->size+=((uint32)sbrk(0)-((uint32)newAllocationNode+size+sizeOfMetaData()));
+    	}
+      return (void*)((uint32)newAllocationNode + sizeOfMetaData());
+ }
+    return NULL; // Return NULL for the else case
+}
