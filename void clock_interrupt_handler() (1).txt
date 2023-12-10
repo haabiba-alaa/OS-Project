@@ -1,0 +1,100 @@
+void clock_interrupt_handler()
+{
+	//TODO: [PROJECT'23.MS3 - #5] [2] BSD SCHEDULER - Your code is here
+	{
+   if (isSchedMethodBSD()){
+	   
+	struct Env * first_env;
+	struct Env_Queue currQueue;
+	init_queue(&currQueue);
+	int ready_processes = 0;
+
+	 neededticks = fix_round(fix_div(fix_int(1000), fix_int(quantums[0])));
+
+     //getting number of ready process
+	 for (int i = num_of_ready_queues -1; i>=0; i--){
+				ready_processes += queue_size(&env_ready_queues[i]);
+		}
+      // updating **load avg** every second
+      if (ticks% neededticks ==0){
+
+    	  int currentloadavg = get_load_average();
+
+    	  fixed_point_t firstfraction = fix_div(fix_int(59),fix_int(60));
+    	  fixed_point_t secfraction = fix_div(fix_int(1),fix_int(60));
+    	  fixed_point_t newloadavg = fix_add(fix_mul(firstfraction, fix_int(currentloadavg)), fix_mul(secfraction,fix_int(ready_processes)));
+          currentloadavg = fix_round(newloadavg);
+
+       }
+      //updating **recent** cpu
+      for (int i =0; i < num_of_ready_queues; i++){
+
+           currQueue = env_ready_queues[i];
+           first_env = dequeue(&currQueue);
+
+           //on each tick for running process
+           while(first_env != NULL){
+
+        	   int currentloadavg = get_load_average();
+        	   int curr_recentcpu = env_get_recent_cpu(first_env);
+        	   int currentnice = env_get_nice(first_env);
+
+
+            	  fixed_point_t twocurrentloadavg = fix_scale(fix_int(currentloadavg),2);
+            	  fixed_point_t twocurrentloadavgplus1 = fix_add(twocurrentloadavg, fix_int(1));
+            	  fixed_point_t division = fix_div(twocurrentloadavg, twocurrentloadavgplus1);
+            	  fixed_point_t new_curr_recentcpu = fix_add( fix_mul(division, fix_int(curr_recentcpu)), fix_int(currentnice));
+
+            	  curr_recentcpu = fix_round(new_curr_recentcpu);
+
+
+              // updating curr recent cpu once per second for all processes
+            	if (ticks% neededticks ==0){
+                  LIST_FOREACH(first_env,&currQueue){
+            			  fixed_point_t twocurrentloadavg = fix_scale(fix_int(currentloadavg),2);
+            			  fixed_point_t twocurrentloadavgplus1 = fix_add(twocurrentloadavg, fix_int(1));
+            			  fixed_point_t division = fix_div(twocurrentloadavg, twocurrentloadavgplus1);
+            			  fixed_point_t new_curr_recentcpu = fix_add( fix_mul(division, fix_int(curr_recentcpu)), fix_int(currentnice));
+
+            			  curr_recentcpu = fix_round(new_curr_recentcpu);
+
+                  }}
+              enqueue(&currQueue, first_env);
+           }}
+
+
+      //updating priority every 4 ticks
+      if (ticks% 4 == 0){
+    	  for (int i =0; i < num_of_ready_queues; i++){
+
+    		currQueue = env_ready_queues[i];
+    		first_env = dequeue(&currQueue);
+
+    		while (first_env != NULL){
+    			int recentcpu = env_get_recent_cpu(first_env);
+    			int currnice = env_get_nice(first_env);
+    			fixed_point_t fraction = fix_div(fix_int(recentcpu),fix_int(4));
+    			fixed_point_t firstpart = fix_sub(fix_int(num_of_ready_queues), fraction);
+    			fixed_point_t secpart = fix_scale(fix_int(currnice),2);
+    			first_env -> priority= fix_round(fix_sub(firstpart,secpart));
+
+    			enqueue(&currQueue, first_env);
+
+    		}
+    	  }
+      }
+
+
+
+	}}
+
+	/********DON'T CHANGE THIS LINE***********/
+	ticks++ ;
+	if(isPageReplacmentAlgorithmLRU(PG_REP_LRU_TIME_APPROX))
+	{
+		update_WS_time_stamps();
+	}
+	//cprintf("Clock Handler\n") ;
+	fos_scheduler();
+	/*****************************************/
+}
