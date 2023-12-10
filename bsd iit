@@ -1,0 +1,26 @@
+void sched_init_BSD(uint8 numOfLevels, uint8 quantum)
+{
+#if USE_KHEAP
+    env_ready_queues = (struct Env_Queue *)kmalloc(numOfLevels * sizeof(struct Env_Queue));
+
+    
+    for (uint8 i = 0; i < numOfLevels; i++) {
+        
+        LIST_INIT(&env_ready_queues[i]);
+    }
+
+    quantums = (uint8 *)kmalloc(numOfLevels * sizeof(uint8));
+
+    for (uint8 i = 0; i < numOfLevels; i++) {
+        quantums[i] = quantum;
+    }
+
+    
+    num_of_ready_queues = numOfLevels;
+
+#endif
+
+    // DON'T CHANGE THESE LINES
+    scheduler_status = SCH_STOPPED;
+    scheduler_method = SCH_BSD;
+}
