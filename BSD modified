@@ -1,0 +1,186 @@
+struct Env* fos_scheduler_BSD() {
+	//TODO: [PROJECT'23.MS3 - #5] [2] BSD SCHEDULER - fos_scheduler_BSD
+	//Your code is here
+	//Comment the following line
+	//panic("Not implemented yet");
+	if (curenv != NULL) {
+		int j = (num_of_ready_queues - 1) - curenv->env_priorty;
+		enqueue(&env_ready_queues[j], curenv);
+		// j handle less than 0
+
+	}
+
+	for (int i = 0; i < num_of_ready_queues; i++) {
+
+		if (queue_size(&env_ready_queues[i]) > 0) {
+
+			struct Env * env_returned = dequeue(&env_ready_queues[i]);
+
+			kclock_set_quantum(quantums[0]);
+			return env_returned;
+
+		}
+	}
+	load_average = 0;
+	return 0;
+
+}
+
+//========================================
+// [8] Clock Interrupt Handler
+//	  (Automatically Called Every Quantum)
+//========================================
+void clock_interrupt_handler() {
+	//TODO: [PROJECT'23.MS3 - #5] [2] BSD SCHEDULER - Your code is here
+
+	if (isSchedMethodBSD()) {
+		struct Env * first_env;
+		struct Env_Queue currQueue;
+		//init_queue(&currQueue);
+		int ready_processes = 0;
+		curenv->env_recent_cpu = curenv->env_recent_cpu + 1;
+
+		neededticks = fix_round(fix_div(fix_int(1000), fix_int(quantums[0])));
+
+		//updating **recent** cpu
+
+		if ((ticks+1) % neededticks == 0) {
+
+			// updating curr recent cpu once per second for all processes
+
+			for (int i = 0; i < num_of_ready_queues; i++) {
+
+				currQueue = env_ready_queues[i];
+				first_env = NULL;
+
+				LIST_FOREACH(first_env,&currQueue)
+				{
+
+					int currentloadavg = get_load_average() / 100;
+					int curr_recentcpu = env_get_recent_cpu(first_env) / 100;
+					int currentnice = env_get_nice(first_env);
+
+					fixed_point_t twocurrentloadavg = fix_scale(
+							fix_int(currentloadavg), 2);
+					fixed_point_t twocurrentloadavgplus1 = fix_add(
+							twocurrentloadavg, fix_int(1));
+					fixed_point_t division = fix_div(twocurrentloadavg,
+							twocurrentloadavgplus1);
+					fixed_point_t new_curr_recentcpu = fix_add(
+							fix_mul(division, fix_int(curr_recentcpu)),
+							fix_int(currentnice));
+
+					first_env->env_recent_cpu = fix_round(new_curr_recentcpu);
+
+				}
+			}
+
+//			if (curenv != NULL) {
+//				int currentloadavg = get_load_average() / 100;
+//
+//				fixed_point_t twocurrentloadavg = fix_scale(
+//						fix_int(currentloadavg), 2);
+//				fixed_point_t twocurrentloadavgplus1 = fix_add(
+//						twocurrentloadavg, fix_int(1));
+//				fixed_point_t division = fix_div(twocurrentloadavg,
+//						twocurrentloadavgplus1);
+//				fixed_point_t new_curr_recentcpu = fix_add(
+//						fix_mul(division, fix_int(curenv->env_recent_cpu)),
+//						fix_int(curenv->env_nice));
+//
+//				curenv->env_recent_cpu = fix_round(new_curr_recentcpu);
+//			}
+
+		}
+
+		//getting number of ready process
+		for (int i = num_of_ready_queues - 1; i >= 0; i--) {
+			ready_processes += queue_size(&env_ready_queues[i]);
+
+		}
+		ready_processes++;
+
+		// updating **load avg** every second
+		if ((ticks+1) % neededticks == 0) {
+
+			int currentloadavg = get_load_average();
+
+			fixed_point_t firstfraction = fix_div(fix_int(59), fix_int(60));
+			fixed_point_t secfraction = fix_div(fix_int(1), fix_int(60));
+			fixed_point_t newloadavg = fix_add(
+					fix_mul(firstfraction, fix_int(currentloadavg)),
+					fix_mul(secfraction, fix_int(ready_processes)));
+			currentloadavg = fix_round(newloadavg);
+			load_average = currentloadavg;
+
+		}
+
+		//updating priority every 4 ticks
+		if ((ticks+1) % 4 == 0) {
+			for (int i = 0; i < num_of_ready_queues; i++) {
+
+				currQueue = env_ready_queues[i];
+				first_env = NULL;
+
+				//while (first_env != NULL){
+				LIST_FOREACH(first_env,&currQueue)
+				{
+					//int recentcpu = env_get_recent_cpu(first_env);
+					int currnice = env_get_nice(first_env);
+					fixed_point_t fraction = fix_div(fix_int(first_env->env_recent_cpu),
+							fix_int(4));
+					fixed_point_t firstpart = fix_sub(
+							fix_int(PRI_MAX), fraction);
+					fixed_point_t secpart = fix_scale(fix_int(currnice), 2);
+
+					first_env->env_priorty = fix_round(
+							fix_sub(firstpart, secpart));
+
+				}
+
+			}
+			if (curenv != NULL) {
+				//int recentcpu = env_get_recent_cpu(curenv);
+				int currnice = env_get_nice(curenv);
+				fixed_point_t fraction = fix_div(fix_int(curenv->env_recent_cpu),
+						fix_int(4));
+				fixed_point_t firstpart = fix_sub(fix_int(PRI_MAX),
+						fraction);
+				fixed_point_t secpart = fix_scale(fix_int(currnice), 2);
+
+				curenv->env_priorty = fix_round(fix_sub(firstpart, secpart));
+			}
+
+			for (int i = 0; i < num_of_ready_queues; i++) {
+
+				struct Env_Queue target_queue;
+				//target_queue = env_ready_queues[i]
+				currQueue = env_ready_queues[i];
+				first_env = NULL;
+
+				LIST_FOREACH(first_env,&currQueue)
+				{
+					int j = (num_of_ready_queues - 1) - first_env->env_priorty;
+					target_queue = env_ready_queues[j];
+
+					LIST_REMOVE(&currQueue, first_env);
+
+					LIST_INSERT_HEAD(&target_queue, first_env);
+				}
+
+			}
+
+		}
+
+	}
+
+	/********DON'T CHANGE THIS LINE***********/
+	ticks++;
+	if (isPageReplacmentAlgorithmLRU(PG_REP_LRU_TIME_APPROX)) {
+		update_WS_time_stamps();
+	}
+	//cprintf("Clock Handler\n") ;
+	fos_scheduler();
+	/*****************************************/
+
+}
