@@ -1,0 +1,49 @@
+int env_get_nice(struct Env* e) {
+	//TODO: [PROJECT'23.MS3 - #3] [2] BSD SCHEDULER - env_get_nice
+	//Your code is here
+	//Comment the following line
+	//panic("Not implemented yet");
+	return e->env_nice;
+	// return 0;
+}
+void env_set_nice(struct Env* e, int nice_value) {
+	//TODO: [PROJECT'23.MS3 - #3] [2] BSD SCHEDULER - env_set_nice
+	//Your code is here
+	//Comment the following line
+	//panic("Not implemented yet");
+	e->env_nice = nice_value;
+	//e->env_priorty = PRI_MAX - (e->env_recent_cpu / 4) - (e->env_nice * 2);
+	//int recentcpu = env_get_recent_cpu(curenv);
+	//int currnice = env_get_nice(curenv);
+
+	fixed_point_t fraction = fix_div(fix_int(e->env_recent_cpu), fix_int(4));
+	fixed_point_t firstpart = fix_sub(fix_int(PRI_MAX), fraction);
+	fixed_point_t secpart = fix_scale(fix_int(e->env_nice), 2);
+
+	e->env_priorty = fix_round(fix_sub(firstpart, secpart));
+
+}
+int env_get_recent_cpu(struct Env* e) {
+	//TODO: [PROJECT'23.MS3 - #3] [2] BSD SCHEDULER - env_get_recent_cpu
+	//Your code is here
+	//Comment the following line
+	//panic("Not implemented yet");
+	// Assuming env_recent_cpu is already of type fixed_point_t
+	fixed_point_t scaled_recent_cpu = fix_scale(
+			fix_int((int) e->env_recent_cpu), 100);
+	int rounded_value_recent_cpu = fix_round(scaled_recent_cpu);
+	return rounded_value_recent_cpu;
+	//return 0;
+}
+
+int get_load_average() {
+	//TODO: [PROJECT'23.MS3 - #3] [2] BSD SCHEDULER - get_load_average
+	//Your code is here
+	//Comment the following line
+	//panic("Not implemented yet");
+	fixed_point_t scaled_load_average = fix_scale(fix_int((int) load_average),
+			100);
+	int rounded_value_load_average = fix_round(scaled_load_average);
+	return rounded_value_load_average;
+
+}
